@@ -8,8 +8,8 @@ type ColumnKey = 'name' | 'author' | 'version' | 'modified'
 type ColumnWidths = Record<ColumnKey, number>
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  name: 260,
-  author: 130,
+  name: 200,
+  author: 100,
   version: 90,
   modified: 160
 }
