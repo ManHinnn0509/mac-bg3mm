@@ -1,4 +1,4 @@
-import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { getDefaultBg3ModSettingsPath } from './bg3Paths'
 import { PakError } from './types'
@@ -13,26 +13,6 @@ const GUSTAV_X: ModuleShortDescInputDto = {
   name: 'GustavX',
   uuid: 'cb555efe-2d9e-131f-8195-a89329d218ea',
   version64: '36028797018963968'
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return typeof error === 'object' && error !== null && 'code' in error
-}
-
-function createBackupTimestamp(): string {
-  const date = new Date()
-
-  const pad = (value: number): string => String(value).padStart(2, '0')
-
-  return [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-    '-',
-    pad(date.getHours()),
-    pad(date.getMinutes()),
-    pad(date.getSeconds())
-  ].join('')
 }
 
 function escapeXmlAttribute(value: string): string {
@@ -98,23 +78,6 @@ export function buildModSettingsLsx(enabledMods: ModuleShortDescInputDto[]): str
   ].join('\n')
 }
 
-async function backupExistingFile(filePath: string): Promise<string | null> {
-  try {
-    await stat(filePath)
-  } catch (error) {
-    if (isNodeError(error) && error.code === 'ENOENT') {
-      return null
-    }
-
-    throw error
-  }
-
-  const backupPath = `${filePath}.backup-${createBackupTimestamp()}`
-  await copyFile(filePath, backupPath)
-
-  return backupPath
-}
-
 export async function exportModSettings(
   enabledMods: ModuleShortDescInputDto[]
 ): Promise<ModSettingsExportResultDto> {
@@ -122,14 +85,10 @@ export async function exportModSettings(
   const xml = buildModSettingsLsx(enabledMods)
 
   await mkdir(dirname(modSettingsPath), { recursive: true })
-
-  const backupPath = await backupExistingFile(modSettingsPath)
-
   await writeFile(modSettingsPath, xml, 'utf8')
 
   return {
     modSettingsPath,
-    backupPath,
     exportedMods: enabledMods.length
   }
 }

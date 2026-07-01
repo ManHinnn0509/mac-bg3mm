@@ -401,8 +401,7 @@ function App(): React.JSX.Element {
       setSuccessMessage(
         [
           `Exported ${result.exportedMods} enabled mod(s) to BG3.`,
-          `Path: ${result.modSettingsPath}`,
-          result.backupPath ? `Backup: ${result.backupPath}` : 'Backup: no previous modsettings.lsx existed'
+          `Path: ${result.modSettingsPath}`
         ].join('\n')
       )
     } catch (err) {

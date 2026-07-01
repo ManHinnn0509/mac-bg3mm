@@ -93,6 +93,5 @@ export type ModuleShortDescInputDto = {
 
 export type ModSettingsExportResultDto = {
   modSettingsPath: string
-  backupPath: string | null
   exportedMods: number
 }
