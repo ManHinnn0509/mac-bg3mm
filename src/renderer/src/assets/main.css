@@ -264,3 +264,33 @@ button:disabled {
   padding: 12px;
   white-space: pre-wrap;
 }
+
+.profile-item.is-active {
+  border-color: #5b6380;
+  background: #2b2f3a;
+}
+
+.mod-column.is-over {
+  border-color: #6f7aa0;
+}
+
+.mod-table-row {
+  cursor: grab;
+  touch-action: none;
+}
+
+.mod-table-row:active {
+  cursor: grabbing;
+}
+
+.mod-table-row.is-dragging {
+  opacity: 0.35;
+}
+
+.drag-overlay {
+  border: 1px solid #5b6380;
+  border-radius: 8px;
+  background: #2b2f3a;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  cursor: grabbing;
+}

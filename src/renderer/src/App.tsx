@@ -1,11 +1,34 @@
+import { CSS } from '@dnd-kit/utilities'
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
 import { useEffect, useMemo, useState } from 'react'
 
 type ScanResultState = Awaited<ReturnType<typeof window.api.scanDefaultModsFolder>>
+type ProfilesState = Awaited<ReturnType<typeof window.api.loadProfiles>>
 type ModItem = ScanResultState['mods'][number]
 
 type ColumnKey = 'name' | 'author' | 'version' | 'modified'
-
 type ColumnWidths = Record<ColumnKey, number>
+
+type ContainerId = 'enabled-mods' | 'disabled-mods'
+
+const ENABLED_CONTAINER_ID: ContainerId = 'enabled-mods'
+const DISABLED_CONTAINER_ID: ContainerId = 'disabled-mods'
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   name: 200,
@@ -82,17 +105,107 @@ function formatDate(ms: number): string {
   return new Date(ms).toLocaleString()
 }
 
+function getModId(mod: ModItem): string {
+  return mod.mod.uuid ?? mod.pakPath
+}
+
 function getModDisplayName(mod: ModItem): string {
   return mod.mod.name ?? mod.pakFileName
 }
 
+function findActiveProfile(profilesState: ProfilesState | null): ProfilesState['profiles'][number] | null {
+  if (!profilesState) return null
+
+  return (
+    profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId) ??
+    profilesState.profiles[0] ??
+    null
+  )
+}
+
+function uniqueExistingEnabledIds(enabledIds: string[], allMods: ModItem[]): string[] {
+  const existingModIds = new Set(allMods.map(getModId))
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const id of enabledIds) {
+    if (!existingModIds.has(id)) continue
+    if (seen.has(id)) continue
+
+    seen.add(id)
+    result.push(id)
+  }
+
+  return result
+}
+
+function ModRowContent({ mod }: { mod: ModItem }): React.JSX.Element {
+  return (
+    <>
+      <div className="mod-table-cell">
+        <div className="mod-name" title={getModDisplayName(mod)}>
+          {getModDisplayName(mod)}
+        </div>
+
+        <div className="mod-meta" title={mod.pakFileName}>
+          {mod.pakFileName}
+        </div>
+      </div>
+
+      <div className="mod-table-cell mod-meta" title={mod.mod.author ?? '-'}>
+        {mod.mod.author ?? '-'}
+      </div>
+
+      <div className="mod-table-cell mod-meta" title={mod.mod.version ?? '-'}>
+        {mod.mod.version ?? '-'}
+      </div>
+
+      <div className="mod-table-cell mod-meta" title={formatDate(mod.lastModifiedMs)}>
+        {formatDate(mod.lastModifiedMs)}
+      </div>
+    </>
+  )
+}
+
+function SortableModRow({
+  mod,
+  gridTemplateColumns
+}: {
+  mod: ModItem
+  gridTemplateColumns: string
+}): React.JSX.Element {
+  const id = getModId(mod)
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mod-table-row ${isDragging ? 'is-dragging' : ''}`}
+      style={{
+        gridTemplateColumns,
+        transform: CSS.Transform.toString(transform),
+        transition
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <ModRowContent mod={mod} />
+    </div>
+  )
+}
+
 function ModTable({
+  containerId,
   title,
   mods,
   emptyMessage,
   columnWidths,
   onStartResize
 }: {
+  containerId: ContainerId
   title: string
   mods: ModItem[]
   emptyMessage: string
@@ -100,9 +213,10 @@ function ModTable({
   onStartResize: (columnKey: ColumnKey, event: React.MouseEvent<HTMLDivElement>) => void
 }): React.JSX.Element {
   const gridTemplateColumns = createGridTemplate(columnWidths)
+  const { setNodeRef, isOver } = useDroppable({ id: containerId })
 
   return (
-    <div className="mod-column">
+    <div className={`mod-column ${isOver ? 'is-over' : ''}`} ref={setNodeRef}>
       <div className="mod-column-header">
         <div className="mod-column-title">{title}</div>
         <div className="mod-column-count">{mods.length}</div>
@@ -125,39 +239,19 @@ function ModTable({
             ))}
           </div>
 
-          {mods.length === 0 ? (
-            <div className="empty-state">{emptyMessage}</div>
-          ) : (
-            mods.map((mod) => (
-              <div
-                className="mod-table-row"
-                key={mod.mod.uuid ?? mod.pakPath}
-                style={{ gridTemplateColumns }}
-              >
-                <div className="mod-table-cell">
-                  <div className="mod-name" title={getModDisplayName(mod)}>
-                    {getModDisplayName(mod)}
-                  </div>
-
-                  <div className="mod-meta" title={mod.pakFileName}>
-                    {mod.pakFileName}
-                  </div>
-                </div>
-
-                <div className="mod-table-cell mod-meta" title={mod.mod.author ?? '-'}>
-                  {mod.mod.author ?? '-'}
-                </div>
-
-                <div className="mod-table-cell mod-meta" title={mod.mod.version ?? '-'}>
-                  {mod.mod.version ?? '-'}
-                </div>
-
-                <div className="mod-table-cell mod-meta" title={formatDate(mod.lastModifiedMs)}>
-                  {formatDate(mod.lastModifiedMs)}
-                </div>
-              </div>
-            ))
-          )}
+          <SortableContext items={mods.map(getModId)} strategy={verticalListSortingStrategy}>
+            {mods.length === 0 ? (
+              <div className="empty-state">{emptyMessage}</div>
+            ) : (
+              mods.map((mod) => (
+                <SortableModRow
+                  key={getModId(mod)}
+                  mod={mod}
+                  gridTemplateColumns={gridTemplateColumns}
+                />
+              ))
+            )}
+          </SortableContext>
         </div>
       </div>
     </div>
@@ -166,13 +260,47 @@ function ModTable({
 
 function App(): React.JSX.Element {
   const [scanResult, setScanResult] = useState<ScanResultState | null>(null)
+  const [profilesState, setProfilesState] = useState<ProfilesState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [activeDragModId, setActiveDragModId] = useState<string | null>(null)
 
   const enabledColumns = useResizableColumns()
   const disabledColumns = useResizableColumns()
 
-  async function handleScanModsFolder(): Promise<void> {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6
+      }
+    })
+  )
+
+  async function loadInitialData(): Promise<void> {
+    setError(null)
+    setIsScanning(true)
+
+    try {
+      const [nextScanResult, nextProfilesState] = await Promise.all([
+        window.api.scanDefaultModsFolder(),
+        window.api.loadProfiles()
+      ])
+
+      setScanResult(nextScanResult)
+      setProfilesState(nextProfilesState)
+      setHasUnsavedChanges(false)
+    } catch (err) {
+      setScanResult(null)
+      setProfilesState(null)
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
+  async function handleRefreshMods(): Promise<void> {
     setError(null)
     setIsScanning(true)
 
@@ -187,17 +315,145 @@ function App(): React.JSX.Element {
     }
   }
 
+  async function handleSaveProfile(): Promise<void> {
+    if (!profilesState) return
+
+    setError(null)
+    setIsSaving(true)
+
+    try {
+      const savedState = await window.api.saveProfiles(profilesState)
+      setProfilesState(savedState)
+      setHasUnsavedChanges(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function updateActiveProfileEnabledIds(nextEnabledIds: string[]): void {
+    setProfilesState((current) => {
+      if (!current) return current
+
+      const activeProfile = findActiveProfile(current)
+      if (!activeProfile) return current
+
+      return {
+        ...current,
+        activeProfileId: activeProfile.id,
+        profiles: current.profiles.map((profile) =>
+          profile.id === activeProfile.id
+            ? {
+                ...profile,
+                enabledModUuids: nextEnabledIds
+              }
+            : profile
+        )
+      }
+    })
+
+    setHasUnsavedChanges(true)
+  }
+
   useEffect(() => {
-    void handleScanModsFolder()
+    void loadInitialData()
   }, [])
 
   const allMods = useMemo(() => scanResult?.mods ?? [], [scanResult])
 
-  // Profile 還沒做，所以暫時全部都是 disabled。
-  const enabledMods: ModItem[] = []
-  const disabledMods = allMods
+  const modsById = useMemo(() => {
+    const map = new Map<string, ModItem>()
 
+    for (const mod of allMods) {
+      map.set(getModId(mod), mod)
+    }
+
+    return map
+  }, [allMods])
+
+  const activeProfile = useMemo(() => findActiveProfile(profilesState), [profilesState])
+
+  const enabledModIds = useMemo(() => {
+    return uniqueExistingEnabledIds(activeProfile?.enabledModUuids ?? [], allMods)
+  }, [activeProfile, allMods])
+
+  const enabledMods = useMemo(() => {
+    return enabledModIds.map((id) => modsById.get(id)).filter((mod): mod is ModItem => Boolean(mod))
+  }, [enabledModIds, modsById])
+
+  const disabledMods = useMemo(() => {
+    const enabledSet = new Set(enabledModIds)
+
+    return allMods.filter((mod) => !enabledSet.has(getModId(mod)))
+  }, [allMods, enabledModIds])
+
+  const activeDragMod = activeDragModId ? modsById.get(activeDragModId) ?? null : null
   const scanErrors = scanResult?.errors ?? []
+
+  function getContainerForModId(modId: string): ContainerId {
+    return enabledModIds.includes(modId) ? ENABLED_CONTAINER_ID : DISABLED_CONTAINER_ID
+  }
+
+  function handleDragStart(event: DragStartEvent): void {
+    setActiveDragModId(String(event.active.id))
+  }
+
+  function handleDragEnd(event: DragEndEvent): void {
+    const activeId = String(event.active.id)
+    const overId = event.over ? String(event.over.id) : null
+
+    setActiveDragModId(null)
+
+    if (!overId) return
+    if (!modsById.has(activeId)) return
+
+    const activeContainer = getContainerForModId(activeId)
+
+    let overContainer: ContainerId
+
+    if (overId === ENABLED_CONTAINER_ID || overId === DISABLED_CONTAINER_ID) {
+      overContainer = overId
+    } else {
+      overContainer = getContainerForModId(overId)
+    }
+
+    if (activeContainer === DISABLED_CONTAINER_ID && overContainer === DISABLED_CONTAINER_ID) {
+      return
+    }
+
+    if (activeContainer === ENABLED_CONTAINER_ID && overContainer === DISABLED_CONTAINER_ID) {
+      updateActiveProfileEnabledIds(enabledModIds.filter((id) => id !== activeId))
+      return
+    }
+
+    if (activeContainer === ENABLED_CONTAINER_ID && overContainer === ENABLED_CONTAINER_ID) {
+      const oldIndex = enabledModIds.indexOf(activeId)
+      const newIndex =
+        overId === ENABLED_CONTAINER_ID ? enabledModIds.length - 1 : enabledModIds.indexOf(overId)
+
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+        return
+      }
+
+      updateActiveProfileEnabledIds(arrayMove(enabledModIds, oldIndex, newIndex))
+      return
+    }
+
+    if (activeContainer === DISABLED_CONTAINER_ID && overContainer === ENABLED_CONTAINER_ID) {
+      const nextEnabledIds = enabledModIds.filter((id) => id !== activeId)
+      const insertIndex =
+        overId === ENABLED_CONTAINER_ID ? nextEnabledIds.length : nextEnabledIds.indexOf(overId)
+
+      if (insertIndex === -1) {
+        nextEnabledIds.push(activeId)
+      } else {
+        nextEnabledIds.splice(insertIndex, 0, activeId)
+      }
+
+      updateActiveProfileEnabledIds(nextEnabledIds)
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -208,15 +464,15 @@ function App(): React.JSX.Element {
         </div>
 
         <div className="header-actions">
-          <button disabled title="Profile backend coming next">
-            Save Profile
+          <button onClick={handleSaveProfile} disabled={!profilesState || !hasUnsavedChanges || isSaving}>
+            {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Profile *' : 'Save Profile'}
           </button>
 
-          <button disabled title="Profile backend coming next">
+          <button disabled title="Coming after basic profile save works">
             Save Profile As...
           </button>
 
-          <button onClick={handleScanModsFolder} disabled={isScanning}>
+          <button onClick={handleRefreshMods} disabled={isScanning}>
             {isScanning ? 'Scanning...' : 'Refresh Mods'}
           </button>
         </div>
@@ -226,10 +482,24 @@ function App(): React.JSX.Element {
         <aside className="sidebar">
           <div className="sidebar-title">Profiles</div>
 
-          <div className="profile-item">
-            <div style={{ fontWeight: 700 }}>Default</div>
-            <div className="mod-meta">Profile system coming next</div>
-          </div>
+          {profilesState?.profiles.map((profile) => (
+            <div
+              className={`profile-item ${profile.id === activeProfile?.id ? 'is-active' : ''}`}
+              key={profile.id}
+            >
+              <div style={{ fontWeight: 700 }}>
+                {profile.name}
+                {profile.id === activeProfile?.id && hasUnsavedChanges ? ' *' : ''}
+              </div>
+              <div className="mod-meta">{profile.enabledModUuids.length} enabled mods</div>
+            </div>
+          ))}
+
+          {!profilesState && (
+            <div className="profile-item">
+              <div style={{ fontWeight: 700 }}>Loading...</div>
+            </div>
+          )}
         </aside>
 
         <main className="main-panel">
@@ -252,23 +522,49 @@ function App(): React.JSX.Element {
             </div>
           </section>
 
-          <section className="mod-columns">
-            <ModTable
-              title="Enabled Mods"
-              mods={enabledMods}
-              emptyMessage="No enabled mods yet. Profiles and drag/drop are the next step."
-              columnWidths={enabledColumns.widths}
-              onStartResize={enabledColumns.startResize}
-            />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <section className="mod-columns">
+              <ModTable
+                containerId={ENABLED_CONTAINER_ID}
+                title="Enabled Mods"
+                mods={enabledMods}
+                emptyMessage="Drag mods here to enable them."
+                columnWidths={enabledColumns.widths}
+                onStartResize={enabledColumns.startResize}
+              />
 
-            <ModTable
-              title="Disabled Mods"
-              mods={disabledMods}
-              emptyMessage="No disabled mods found."
-              columnWidths={disabledColumns.widths}
-              onStartResize={disabledColumns.startResize}
-            />
-          </section>
+              <ModTable
+                containerId={DISABLED_CONTAINER_ID}
+                title="Disabled Mods"
+                mods={disabledMods}
+                emptyMessage="No disabled mods found."
+                columnWidths={disabledColumns.widths}
+                onStartResize={disabledColumns.startResize}
+              />
+            </section>
+
+            <DragOverlay>
+              {activeDragMod && (
+                <div
+                  className="mod-table-row drag-overlay"
+                  style={{
+                    gridTemplateColumns: createGridTemplate(
+                      getContainerForModId(getModId(activeDragMod)) === ENABLED_CONTAINER_ID
+                        ? enabledColumns.widths
+                        : disabledColumns.widths
+                    )
+                  }}
+                >
+                  <ModRowContent mod={activeDragMod} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
 
           {scanErrors.length > 0 && (
             <section className="error-box">
