@@ -1,4 +1,4 @@
-# bg3-mod-manager
+# ez-bg3mm
 
 Just a really simple BG3 mod manager, drag and drop to enable/disable/rearrange mods
 
