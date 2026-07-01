@@ -407,3 +407,38 @@ button:disabled {
   padding: 12px;
   white-space: pre-wrap;
 }
+
+.profile-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-controls button {
+  padding: 7px 10px;
+}
+
+.modal-message {
+  margin: 0 0 12px;
+  color: #f0f0f0;
+  line-height: 1.45;
+}
+
+.modal-message.muted {
+  color: #a7abb8;
+  font-size: 13px;
+}
+
+.danger-button {
+  border-color: #884444;
+  background: #3a1f1f;
+  color: #ffb4b4;
+}
+
+.danger-button:hover {
+  background: #4a2626;
+}
+
+.danger-button:disabled {
+  opacity: 0.45;
+}

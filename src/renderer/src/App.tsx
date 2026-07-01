@@ -303,6 +303,10 @@ function App(): React.JSX.Element {
   const [isSaveAsOpen, setIsSaveAsOpen] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsError, setSaveAsError] = useState<string | null>(null)
+  const [isRenameOpen, setIsRenameOpen] = useState(false)
+  const [renameName, setRenameName] = useState('')
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const enabledColumns = useResizableColumns()
   const disabledColumns = useResizableColumns()
@@ -468,9 +472,125 @@ function App(): React.JSX.Element {
       setProfilesState(savedState)
       setHasUnsavedChanges(false)
       handleCloseSaveProfileAs()
-      } catch (err) {
-        setSaveAsError(err instanceof Error ? err.message : String(err))
-      } finally {
+    } catch (err) {
+      setSaveAsError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleOpenRenameProfile(): void {
+    if (!activeProfile) return
+
+    setSuccessMessage(null)
+    setError(null)
+    setRenameError(null)
+    setRenameName(activeProfile.name)
+    setIsRenameOpen(true)
+  }
+
+  function handleCloseRenameProfile(): void {
+    setIsRenameOpen(false)
+    setRenameName('')
+    setRenameError(null)
+  }
+
+  async function handleConfirmRenameProfile(): Promise<void> {
+    if (!profilesState || !activeProfile) return
+
+    const name = renameName.trim()
+
+    if (!name) {
+      setRenameError('Profile name cannot be empty')
+      return
+    }
+
+    const duplicatedName = profilesState.profiles.some(
+      (profile) =>
+        profile.id !== activeProfile.id &&
+        profile.name.trim().toLowerCase() === name.toLowerCase()
+    )
+
+    if (duplicatedName) {
+      setRenameError(`Profile already exists: ${name}`)
+      return
+    }
+
+    setError(null)
+    setRenameError(null)
+    setIsSaving(true)
+
+    try {
+      const nextState = {
+        ...profilesState,
+        profiles: profilesState.profiles.map((profile) =>
+          profile.id === activeProfile.id
+            ? {
+                ...profile,
+                name
+              }
+            : profile
+        )
+      }
+
+      const savedState = await window.api.saveProfiles(nextState)
+
+      setProfilesState(savedState)
+      setHasUnsavedChanges(false)
+      handleCloseRenameProfile()
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleOpenDeleteProfile(): void {
+    if (!activeProfile) return
+
+    setSuccessMessage(null)
+    setError(null)
+    setIsDeleteOpen(true)
+  }
+
+  function handleCloseDeleteProfile(): void {
+    setIsDeleteOpen(false)
+  }
+
+  async function handleConfirmDeleteProfile(): Promise<void> {
+    if (!profilesState || !activeProfile) return
+
+    if (profilesState.profiles.length <= 1) {
+      setError('Cannot delete the last profile')
+      setIsDeleteOpen(false)
+      return
+    }
+
+    setError(null)
+    setSuccessMessage(null)
+    setIsSaving(true)
+
+    try {
+      const activeIndex = profilesState.profiles.findIndex((profile) => profile.id === activeProfile.id)
+
+      const nextProfiles = profilesState.profiles.filter((profile) => profile.id !== activeProfile.id)
+
+      const nextActiveProfile =
+        nextProfiles[Math.min(activeIndex, nextProfiles.length - 1)] ?? nextProfiles[0]
+
+      const nextState = {
+        activeProfileId: nextActiveProfile.id,
+        profiles: nextProfiles
+      }
+
+      const savedState = await window.api.saveProfiles(nextState)
+
+      setProfilesState(savedState)
+      setHasUnsavedChanges(false)
+      handleCloseDeleteProfile()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
       setIsSaving(false)
     }
   }
@@ -652,6 +772,92 @@ function App(): React.JSX.Element {
           </form>
         </div>
       )}
+
+      {isRenameOpen && (
+        <div className="modal-backdrop" onMouseDown={handleCloseRenameProfile}>
+          <form
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleConfirmRenameProfile()
+            }}
+          >
+            <div className="modal-title">Rename Profile</div>
+
+            <label className="modal-field">
+              <span>Profile name</span>
+
+              <input
+                autoFocus
+                value={renameName}
+                onChange={(event) => {
+                  setRenameName(event.target.value)
+                  setRenameError(null)
+                }}
+                placeholder="Profile name"
+              />
+            </label>
+
+            {renameError && <div className="modal-error">{renameError}</div>}
+
+            <div className="modal-actions">
+              <button type="button" onClick={handleCloseRenameProfile}>
+                Cancel
+              </button>
+
+              <button type="submit" disabled={isSaving || !renameName.trim()}>
+                {isSaving ? 'Saving...' : 'Rename'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+
+      {isDeleteOpen && activeProfile && (
+        <div className="modal-backdrop" onMouseDown={handleCloseDeleteProfile}>
+          <form
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleConfirmDeleteProfile()
+            }}
+          >
+            <div className="modal-title">Delete Profile</div>
+
+            <p className="modal-message">
+              Delete profile <strong>{activeProfile.name}</strong>?
+            </p>
+
+            <p className="modal-message muted">
+              This only deletes the app profile. It does not delete any .pak files and does not change BG3
+              until you export again.
+            </p>
+
+            <div className="modal-actions">
+              <button type="button" onClick={handleCloseDeleteProfile}>
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="danger-button"
+                disabled={isSaving || !profilesState || profilesState.profiles.length <= 1}
+                title={
+                  profilesState && profilesState.profiles.length <= 1
+                    ? 'Cannot delete the last profile'
+                    : undefined
+                }
+              >
+                {isSaving ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <header className="app-header">
         <div className="header-left">
           <div className="brand-block">
@@ -659,23 +865,41 @@ function App(): React.JSX.Element {
             <div className="app-subtitle">Local .pak profile manager</div>
           </div>
 
-          <label className="profile-select-block">
-            <span>Profile</span>
+          <div className="profile-controls">
+            <label className="profile-select-block">
+              <span>Profile</span>
 
-            <select
-              className="profile-select"
-              value={profilesState?.activeProfileId ?? ''}
-              disabled={!profilesState || profilesState.profiles.length === 0}
-              onChange={(event) => handleSelectProfile(event.target.value)}
+              <select
+                className="profile-select"
+                value={profilesState?.activeProfileId ?? ''}
+                disabled={!profilesState || profilesState.profiles.length === 0}
+                onChange={(event) => handleSelectProfile(event.target.value)}
+              >
+                {profilesState?.profiles.map((profile) => (
+                  <option value={profile.id} key={profile.id}>
+                    {profile.name}
+                    {profile.id === activeProfile?.id && hasUnsavedChanges ? ' *' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button onClick={handleOpenRenameProfile} disabled={!activeProfile || isSaving}>
+              Rename
+            </button>
+
+            <button
+              onClick={handleOpenDeleteProfile}
+              disabled={!activeProfile || isSaving || !profilesState || profilesState.profiles.length <= 1}
+              title={
+                profilesState && profilesState.profiles.length <= 1
+                  ? 'Cannot delete the last profile'
+                  : undefined
+              }
             >
-              {profilesState?.profiles.map((profile) => (
-                <option value={profile.id} key={profile.id}>
-                  {profile.name}
-                  {profile.id === activeProfile?.id && hasUnsavedChanges ? ' *' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+              Delete
+            </button>
+          </div>
         </div>
 
         <div className="header-actions">
