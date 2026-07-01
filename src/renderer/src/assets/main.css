@@ -26,7 +26,7 @@ button:hover {
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -47,6 +47,12 @@ button:disabled {
   padding: 0 18px;
   border-bottom: 1px solid #2a2d35;
   background: #1d1f26;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-title {
@@ -162,19 +168,66 @@ button:disabled {
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 8px;
 }
 
-.mod-row {
+.mod-table {
+  min-width: 100%;
+  width: max-content;
+}
+
+.mod-table-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) 120px 90px 150px;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid #303440;
-  border-radius: 8px;
+  min-width: 100%;
+  background: #22252d;
+  border-bottom: 1px solid #343844;
+}
+
+.mod-table-header-cell {
+  position: relative;
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c7cad4;
+  border-right: 1px solid #343844;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.column-resizer:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mod-table-row {
+  display: grid;
+  min-width: 100%;
+  border-bottom: 1px solid #2c303a;
+  background: #1d1f26;
+}
+
+.mod-table-row:hover {
   background: #252832;
-  padding: 10px;
-  margin-bottom: 8px;
+}
+
+.mod-table-cell {
+  min-width: 0;
+  padding: 9px 10px;
+  border-right: 1px solid #2c303a;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .mod-name {
