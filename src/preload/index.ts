@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { PakBasicInfoDto, PakEntriesInfoDto, PakModInfoDto } from '../shared/bg3Types'
+
+import type {
+  ModsFolderScanResultDto,
+  PakBasicInfoDto,
+  PakEntriesInfoDto,
+  PakModInfoDto
+} from '../shared/bg3Types'
 
 const api = {
   selectPakAndReadBasicInfo: (): Promise<PakBasicInfoDto | null> => {
@@ -13,6 +19,10 @@ const api = {
 
   selectPakAndReadModInfo: (): Promise<PakModInfoDto | null> => {
     return ipcRenderer.invoke('bg3:selectPakAndReadModInfo')
+  },
+
+  selectModsFolderAndScan: (): Promise<ModsFolderScanResultDto | null> => {
+    return ipcRenderer.invoke('bg3:selectModsFolderAndScan')
   }
 }
 

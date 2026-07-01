@@ -4,7 +4,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 import { readPakBasicInfo, readPakEntriesInfo, readPakModInfo } from './bg3/pakReader'
-import type { PakBasicInfoDto, PakEntriesInfoDto, PakModInfoDto } from '../shared/bg3Types'
+import { scanModsFolder } from './bg3/scanModsFolder'
+
+import type {
+  ModsFolderScanResultDto,
+  PakBasicInfoDto,
+  PakEntriesInfoDto,
+  PakModInfoDto
+} from '../shared/bg3Types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -100,6 +107,20 @@ app.whenReady().then(() => {
     }
   }
 
+  function toModsFolderScanResultDto(
+    result: Awaited<ReturnType<typeof scanModsFolder>>
+  ): ModsFolderScanResultDto {
+    return {
+      folderPath: result.folderPath,
+      mods: result.mods.map(toPakModInfoDto),
+      errors: result.errors.map((error) => ({
+        pakPath: error.pakPath,
+        pakFileName: error.pakFileName,
+        error: error.error
+      }))
+    }
+  }
+
   function toPakEntriesInfoDto(
     info: Awaited<ReturnType<typeof readPakEntriesInfo>>
   ): PakEntriesInfoDto {
@@ -186,6 +207,22 @@ app.whenReady().then(() => {
       return toPakModInfoDto(info)
     })
   }
+
+    ipcMain.handle('bg3:selectModsFolderAndScan', async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Select BG3 Mods Folder',
+        properties: ['openDirectory']
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const folderPath = result.filePaths[0]
+      const scanResult = await scanModsFolder(folderPath)
+
+      return toModsFolderScanResultDto(scanResult)
+    })
 
   registerBg3Ipc()
   createWindow()

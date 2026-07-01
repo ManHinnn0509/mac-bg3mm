@@ -60,3 +60,15 @@ export type PakModInfoDto = {
   lastModifiedMs: number
   mod: ModInfoDto
 }
+
+export type PakScanErrorDto = {
+  pakPath: string
+  pakFileName: string
+  error: string
+}
+
+export type ModsFolderScanResultDto = {
+  folderPath: string
+  mods: PakModInfoDto[]
+  errors: PakScanErrorDto[]
+}

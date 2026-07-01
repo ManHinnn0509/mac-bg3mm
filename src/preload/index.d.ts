@@ -1,5 +1,11 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { PakBasicInfoDto, PakEntriesInfoDto, PakModInfoDto } from '../shared/bg3Types'
+
+import type {
+  ModsFolderScanResultDto,
+  PakBasicInfoDto,
+  PakEntriesInfoDto,
+  PakModInfoDto
+} from '../shared/bg3Types'
 
 declare global {
   interface Window {
@@ -8,6 +14,7 @@ declare global {
       selectPakAndReadBasicInfo: () => Promise<PakBasicInfoDto | null>
       selectPakAndReadEntriesInfo: () => Promise<PakEntriesInfoDto | null>
       selectPakAndReadModInfo: () => Promise<PakModInfoDto | null>
+      selectModsFolderAndScan: () => Promise<ModsFolderScanResultDto | null>
     }
   }
 }
