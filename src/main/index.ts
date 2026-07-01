@@ -206,7 +206,7 @@ app.whenReady().then(() => {
 
       return toPakModInfoDto(info)
     })
-  }
+
 
     ipcMain.handle('bg3:selectModsFolderAndScan', async () => {
       const result = await dialog.showOpenDialog({
@@ -223,6 +223,8 @@ app.whenReady().then(() => {
 
       return toModsFolderScanResultDto(scanResult)
     })
+  }
+
 
   registerBg3Ipc()
   createWindow()
