@@ -1,0 +1,11 @@
+# Customs
+*.pak
+*.zip
+
+# Defaults
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
