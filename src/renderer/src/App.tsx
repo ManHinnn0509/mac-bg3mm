@@ -123,6 +123,16 @@ function findActiveProfile(profilesState: ProfilesState | null): ProfilesState['
   )
 }
 
+function createProfileId(existingIds: Set<string>): string {
+  let id = `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+
+  while (existingIds.has(id)) {
+    id = `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  return id
+}
+
 function uniqueExistingEnabledIds(enabledIds: string[], allMods: ModItem[]): string[] {
   const existingModIds = new Set(allMods.map(getModId))
   const seen = new Set<string>()
@@ -266,6 +276,9 @@ function App(): React.JSX.Element {
   const [isSaving, setIsSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [activeDragModId, setActiveDragModId] = useState<string | null>(null)
+  const [isSaveAsOpen, setIsSaveAsOpen] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+  const [saveAsError, setSaveAsError] = useState<string | null>(null)
 
   const enabledColumns = useResizableColumns()
   const disabledColumns = useResizableColumns()
@@ -332,15 +345,77 @@ function App(): React.JSX.Element {
     }
   }
 
+  function handleOpenSaveProfileAs(): void {
+    const baseName = activeProfile?.name ?? 'New Profile'
+
+    setError(null)
+    setSaveAsError(null)
+    setSaveAsName(`${baseName} Copy`)
+    setIsSaveAsOpen(true)
+  }
+
+  function handleCloseSaveProfileAs(): void {
+    setIsSaveAsOpen(false)
+    setSaveAsName('')
+    setSaveAsError(null)
+  }
+
+  async function handleConfirmSaveProfileAs(): Promise<void> {
+    if (!profilesState) return
+
+    const name = saveAsName.trim()
+
+    if (!name) {
+      setSaveAsError('Profile name cannot be empty')
+      return
+    }
+
+    const duplicatedName = profilesState.profiles.some(
+      (profile) => profile.name.trim().toLowerCase() === name.toLowerCase()
+    )
+
+    if (duplicatedName) {
+      setSaveAsError(`Profile already exists: ${name}`)
+      return
+    }
+
+    setError(null)
+    setSaveAsError(null)
+    setIsSaving(true)
+
+    try {
+      const existingIds = new Set(profilesState.profiles.map((profile) => profile.id))
+      const newProfile = {
+        id: createProfileId(existingIds),
+        name,
+        enabledModUuids: [...enabledModIds]
+      }
+
+      const nextState = {
+        activeProfileId: newProfile.id,
+        profiles: [...profilesState.profiles, newProfile]
+      }
+
+      const savedState = await window.api.saveProfiles(nextState)
+
+      setProfilesState(savedState)
+      setHasUnsavedChanges(false)
+      handleCloseSaveProfileAs()
+      } catch (err) {
+        setSaveAsError(err instanceof Error ? err.message : String(err))
+      } finally {
+      setIsSaving(false)
+    }
+  }
+
   function handleSelectProfile(profileId: string): void {
     if (!profilesState) return
+    if (profileId === profilesState.activeProfileId) return
 
     setProfilesState({
       ...profilesState,
       activeProfileId: profileId
     })
-
-    setHasUnsavedChanges(true)
   }
 
   function updateActiveProfileEnabledIds(nextEnabledIds: string[]): void {
@@ -468,6 +543,46 @@ function App(): React.JSX.Element {
 
   return (
     <div className="app-shell">
+      {isSaveAsOpen && (
+        <div className="modal-backdrop" onMouseDown={handleCloseSaveProfileAs}>
+          <form
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleConfirmSaveProfileAs()
+            }}
+          >
+            <div className="modal-title">Save Profile As...</div>
+
+            <label className="modal-field">
+              <span>Profile name</span>
+
+              <input
+                autoFocus
+                value={saveAsName}
+                onChange={(event) => {
+                  setSaveAsName(event.target.value)
+                  setSaveAsError(null)
+                }}
+                placeholder="New profile name"
+              />
+            </label>
+
+            {saveAsError && <div className="modal-error">{saveAsError}</div>}
+
+            <div className="modal-actions">
+              <button type="button" onClick={handleCloseSaveProfileAs}>
+                Cancel
+              </button>
+
+              <button type="submit" disabled={isSaving || !saveAsName.trim()}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       <header className="app-header">
         <div className="header-left">
           <div className="brand-block">
@@ -499,7 +614,7 @@ function App(): React.JSX.Element {
             {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Profile *' : 'Save Profile'}
           </button>
 
-          <button disabled title="Coming after basic profile save works">
+          <button onClick={handleOpenSaveProfileAs} disabled={!profilesState || isSaving}>
             Save Profile As...
           </button>
 
