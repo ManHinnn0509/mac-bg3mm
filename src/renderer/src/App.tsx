@@ -115,10 +115,12 @@ function ModTable({
               <div className="mod-table-header-cell" key={column.key}>
                 <span>{column.label}</span>
 
-                <div
-                  className="column-resizer"
-                  onMouseDown={(event) => onStartResize(column.key, event)}
-                />
+                {column.key !== 'modified' && (
+                  <div
+                    className="column-resizer"
+                    onMouseDown={(event) => onStartResize(column.key, event)}
+                  />
+                )}
               </div>
             ))}
           </div>

@@ -230,6 +230,11 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
+.mod-table-header-cell:last-child,
+.mod-table-cell:last-child {
+  border-right: none;
+}
+
 .mod-name {
   font-weight: 700;
   overflow: hidden;
