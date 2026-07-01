@@ -1,7 +1,10 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+import { readPakBasicInfo } from './bg3/pakReader'
+import type { PakBasicInfoDto } from '../shared/bg3Types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,6 +55,47 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  function toPakBasicInfoDto(info: Awaited<ReturnType<typeof readPakBasicInfo>>): PakBasicInfoDto {
+    return {
+      pakPath: info.pakPath,
+      pakFileName: info.pakFileName,
+      pakVersion: info.pakVersion,
+      header: {
+        fileListOffset: info.header.fileListOffset.toString(),
+        fileListSize: info.header.fileListSize,
+        flags: info.header.flags,
+        priority: info.header.priority,
+        md5: info.header.md5,
+        numberOfParts: info.header.numberOfParts
+      }
+    }
+  }
+
+  function registerBg3Ipc(): void {
+    ipcMain.handle('bg3:selectPakAndReadBasicInfo', async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Select BG3 .pak file',
+        properties: ['openFile'],
+        filters: [
+          {
+            name: 'BG3 Pak Files',
+            extensions: ['pak']
+          }
+        ]
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const pakPath = result.filePaths[0]
+      const info = await readPakBasicInfo(pakPath)
+
+      return toPakBasicInfoDto(info)
+    })
+  }
+
+  registerBg3Ipc()
   createWindow()
 
   app.on('activate', function () {
