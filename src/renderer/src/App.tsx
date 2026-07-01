@@ -332,6 +332,17 @@ function App(): React.JSX.Element {
     }
   }
 
+  function handleSelectProfile(profileId: string): void {
+    if (!profilesState) return
+
+    setProfilesState({
+      ...profilesState,
+      activeProfileId: profileId
+    })
+
+    setHasUnsavedChanges(true)
+  }
+
   function updateActiveProfileEnabledIds(nextEnabledIds: string[]): void {
     setProfilesState((current) => {
       if (!current) return current
@@ -458,9 +469,29 @@ function App(): React.JSX.Element {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
-          <div className="app-title">BG3 Mod Manager</div>
-          <div className="app-subtitle">Local .pak profile manager</div>
+        <div className="header-left">
+          <div className="brand-block">
+            <div className="app-title">BG3 Mod Manager</div>
+            <div className="app-subtitle">Local .pak profile manager</div>
+          </div>
+
+          <label className="profile-select-block">
+            <span>Profile</span>
+
+            <select
+              className="profile-select"
+              value={profilesState?.activeProfileId ?? ''}
+              disabled={!profilesState || profilesState.profiles.length === 0}
+              onChange={(event) => handleSelectProfile(event.target.value)}
+            >
+              {profilesState?.profiles.map((profile) => (
+                <option value={profile.id} key={profile.id}>
+                  {profile.name}
+                  {profile.id === activeProfile?.id && hasUnsavedChanges ? ' *' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="header-actions">
@@ -479,29 +510,6 @@ function App(): React.JSX.Element {
       </header>
 
       <div className="app-content">
-        <aside className="sidebar">
-          <div className="sidebar-title">Profiles</div>
-
-          {profilesState?.profiles.map((profile) => (
-            <div
-              className={`profile-item ${profile.id === activeProfile?.id ? 'is-active' : ''}`}
-              key={profile.id}
-            >
-              <div style={{ fontWeight: 700 }}>
-                {profile.name}
-                {profile.id === activeProfile?.id && hasUnsavedChanges ? ' *' : ''}
-              </div>
-              <div className="mod-meta">{profile.enabledModUuids.length} enabled mods</div>
-            </div>
-          ))}
-
-          {!profilesState && (
-            <div className="profile-item">
-              <div style={{ fontWeight: 700 }}>Loading...</div>
-            </div>
-          )}
-        </aside>
-
         <main className="main-panel">
           {error && <div className="error-box">{error}</div>}
 

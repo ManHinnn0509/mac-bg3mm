@@ -44,6 +44,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 18px;
   padding: 0 18px;
   border-bottom: 1px solid #2a2d35;
   background: #1d1f26;
@@ -53,6 +54,40 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.header-left {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.brand-block {
+  flex: 0 0 auto;
+}
+
+.profile-select-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a7abb8;
+  font-size: 12px;
+}
+
+.profile-select {
+  min-width: 180px;
+  max-width: 260px;
+  border: 1px solid #3a3d46;
+  border-radius: 8px;
+  background: #252832;
+  color: #f0f0f0;
+  padding: 7px 10px;
+  outline: none;
+}
+
+.profile-select:disabled {
+  opacity: 0.5;
 }
 
 .app-title {
@@ -68,31 +103,13 @@ button:disabled {
 .app-content {
   min-height: 0;
   flex: 1;
-  display: grid;
-  grid-template-columns: 220px 1fr;
+  display: flex;
 }
 
-.sidebar {
-  min-height: 0;
-  border-right: 1px solid #2a2d35;
-  background: #191b21;
-  padding: 16px;
-}
 
-.sidebar-title {
-  font-size: 13px;
-  color: #a7abb8;
-  margin-bottom: 10px;
-}
-
-.profile-item {
-  border: 1px solid #343844;
-  border-radius: 8px;
-  padding: 10px;
-  background: #252832;
-}
 
 .main-panel {
+  flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -265,10 +282,6 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-.profile-item.is-active {
-  border-color: #5b6380;
-  background: #2b2f3a;
-}
 
 .mod-column.is-over {
   border-color: #6f7aa0;
@@ -293,4 +306,30 @@ button:disabled {
   background: #2b2f3a;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   cursor: grabbing;
+}
+
+/* not in use */
+.sidebar {
+  min-height: 0;
+  border-right: 1px solid #2a2d35;
+  background: #191b21;
+  padding: 16px;
+}
+
+.sidebar-title {
+  font-size: 13px;
+  color: #a7abb8;
+  margin-bottom: 10px;
+}
+
+.profile-item {
+  border: 1px solid #343844;
+  border-radius: 8px;
+  padding: 10px;
+  background: #252832;
+}
+
+.profile-item.is-active {
+  border-color: #5b6380;
+  background: #2b2f3a;
 }
