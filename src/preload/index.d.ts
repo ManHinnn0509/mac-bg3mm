@@ -4,7 +4,8 @@ import type {
   ModsFolderScanResultDto,
   PakBasicInfoDto,
   PakEntriesInfoDto,
-  PakModInfoDto
+  PakModInfoDto,
+  ProfilesStateDto
 } from '../shared/bg3Types'
 
 declare global {
@@ -15,6 +16,8 @@ declare global {
       selectPakAndReadEntriesInfo: () => Promise<PakEntriesInfoDto | null>
       selectPakAndReadModInfo: () => Promise<PakModInfoDto | null>
       scanDefaultModsFolder: () => Promise<ModsFolderScanResultDto>
+      loadProfiles: () => Promise<ProfilesStateDto>
+      saveProfiles: (state: ProfilesStateDto) => Promise<ProfilesStateDto>
     }
   }
 }

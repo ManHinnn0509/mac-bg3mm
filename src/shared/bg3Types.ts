@@ -72,3 +72,14 @@ export type ModsFolderScanResultDto = {
   mods: PakModInfoDto[]
   errors: PakScanErrorDto[]
 }
+
+export type ModProfileDto = {
+  id: string
+  name: string
+  enabledModUuids: string[]
+}
+
+export type ProfilesStateDto = {
+  activeProfileId: string
+  profiles: ModProfileDto[]
+}

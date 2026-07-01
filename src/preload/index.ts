@@ -5,7 +5,8 @@ import type {
   ModsFolderScanResultDto,
   PakBasicInfoDto,
   PakEntriesInfoDto,
-  PakModInfoDto
+  PakModInfoDto,
+  ProfilesStateDto
 } from '../shared/bg3Types'
 
 const api = {
@@ -23,6 +24,14 @@ const api = {
 
   scanDefaultModsFolder: (): Promise<ModsFolderScanResultDto> => {
     return ipcRenderer.invoke('bg3:scanDefaultModsFolder')
+  },
+
+  loadProfiles: (): Promise<ProfilesStateDto> => {
+    return ipcRenderer.invoke('profiles:load')
+  },
+
+  saveProfiles: (state: ProfilesStateDto): Promise<ProfilesStateDto> => {
+    return ipcRenderer.invoke('profiles:save', state)
   }
 }
 

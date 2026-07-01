@@ -6,19 +6,21 @@ import icon from '../../resources/icon.png?asset'
 import { readPakBasicInfo, readPakEntriesInfo, readPakModInfo } from './bg3/pakReader'
 import { scanModsFolder } from './bg3/scanModsFolder'
 import { getDefaultBg3ModsFolderPath } from './bg3/bg3Paths'
+import { loadProfilesState, saveProfilesState } from './profiles/profileStore'
 
 import type {
   ModsFolderScanResultDto,
   PakBasicInfoDto,
   PakEntriesInfoDto,
-  PakModInfoDto
+  PakModInfoDto,
+  ProfilesStateDto
 } from '../shared/bg3Types'
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1280,
+    height: 720,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -214,6 +216,18 @@ app.whenReady().then(() => {
 
       return toModsFolderScanResultDto(scanResult)
     })
+      
+    ipcMain.handle('profiles:load', async (): Promise<ProfilesStateDto> => {
+      return loadProfilesState()
+    })
+
+    ipcMain.handle(
+      'profiles:save',
+      async (_event, state: ProfilesStateDto): Promise<ProfilesStateDto> => {
+        return saveProfilesState(state)
+      }
+    )
+
   }
 
 
