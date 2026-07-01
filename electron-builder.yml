@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: bg3-mod-manager
+appId: io.github.manhinnn0509.ez-bg3mm
+productName: ez-bg3mm
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: bg3-mod-manager
+  executableName: ez-bg3mm
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
