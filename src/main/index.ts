@@ -92,6 +92,10 @@ app.whenReady().then(() => {
       pakVersion: info.pakVersion,
       metaPath: info.metaPath,
       lastModifiedMs: info.lastModifiedMs,
+      scriptExtender: {
+        required: info.scriptExtender.required,
+        detectedPaths: info.scriptExtender.detectedPaths
+      },
       mod: {
         name: info.mod.name,
         folder: info.mod.folder,
@@ -119,6 +123,7 @@ app.whenReady().then(() => {
   ): ModsFolderScanResultDto {
     return {
       folderPath: result.folderPath,
+      platform: process.platform,
       mods: result.mods.map(toPakModInfoDto),
       errors: result.errors.map((error) => ({
         pakPath: error.pakPath,

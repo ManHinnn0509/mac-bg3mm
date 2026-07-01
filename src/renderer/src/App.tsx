@@ -120,6 +120,31 @@ function getModDisplayName(mod: ModItem): string {
   return mod.mod.name ?? mod.pakFileName
 }
 
+function isMacOsPlatform(platform: string | null | undefined): boolean {
+  return platform === 'darwin'
+}
+
+function getScriptExtenderBlockMessages(mod: ModItem, platform: string | null | undefined): string[] {
+  if (!isMacOsPlatform(platform)) {
+    return []
+  }
+
+  if (!mod.scriptExtender.required) {
+    return []
+  }
+
+  const detectedPaths = mod.scriptExtender.detectedPaths.slice(0, 5)
+
+  return [
+    'Requires Script Extender, but this app is running on macOS.',
+    'Native macOS BG3 currently cannot use Windows Script Extender DLL mods.',
+    'Disable this mod or run BG3 through a Windows/Proton setup that supports Script Extender.',
+    detectedPaths.length > 0
+      ? `Detected ScriptExtender files:\n${detectedPaths.map((path) => `- ${path}`).join('\n')}`
+      : 'Detected ScriptExtender files inside this pak.'
+  ]
+}
+
 function normalizeDependencyKey(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase()
 
@@ -156,10 +181,18 @@ function findDependencyMod(
 function getDependencyStatus(
   mod: ModItem,
   allMods: ModItem[],
-  enabledModIds: string[]
+  enabledModIds: string[],
+  platform: string | null | undefined
 ): DependencyStatus {
   const messages: string[] = []
   let severity: DependencySeverity = 'none'
+
+  const scriptExtenderBlockMessages = getScriptExtenderBlockMessages(mod, platform)
+
+  if (scriptExtenderBlockMessages.length > 0) {
+    severity = 'error'
+    messages.push(...scriptExtenderBlockMessages)
+  }
 
   const currentModId = getModId(mod)
   const currentIndex = enabledModIds.indexOf(currentModId)
@@ -278,7 +311,11 @@ function ModRowContent({
               className={`dependency-badge dependency-badge-${dependencyStatus.severity}`}
               title={dependencyStatus.messages.join('\n')}
             >
-              {dependencyStatus.severity === 'error' ? 'Missing dependency' : 'Dependency warning'}
+              {dependencyStatus.messages.some((message) => message.includes('Script Extender'))
+                ? 'Script Extender blocked'
+                : dependencyStatus.severity === 'error'
+                  ? 'Missing dependency'
+                  : 'Dependency warning'}
             </span>
           )}
         </div>
@@ -321,7 +358,13 @@ function SortableModRow({
   return (
     <div
       ref={setNodeRef}
-      className={`mod-table-row ${isDragging ? 'is-dragging' : ''}`}
+      className={`mod-table-row ${isDragging ? 'is-dragging' : ''} ${
+        dependencyStatus?.severity === 'error'
+          ? 'dependency-error'
+          : dependencyStatus?.severity === 'warning'
+            ? 'dependency-warning'
+            : ''
+      }`}
       style={{
         gridTemplateColumns,
         transform: CSS.Transform.toString(transform),
@@ -509,7 +552,7 @@ function App(): React.JSX.Element {
 
         setError(
           [
-            'Cannot export to BG3 because enabled mods have missing dependencies:',
+            'Cannot export to BG3 because enabled mods have blocking issues:',
             ...dependencyErrors
           ].join('\n')
         )
@@ -804,11 +847,14 @@ function App(): React.JSX.Element {
     const map = new Map<string, DependencyStatus>()
 
     for (const mod of enabledMods) {
-      map.set(getModId(mod), getDependencyStatus(mod, allMods, enabledModIds))
+      map.set(
+        getModId(mod),
+        getDependencyStatus(mod, allMods, enabledModIds, scanResult?.platform)
+      )
     }
 
     return map
-  }, [enabledMods, allMods, enabledModIds])
+  }, [enabledMods, allMods, enabledModIds, scanResult?.platform])
 
   const dependencyErrorCount = useMemo(() => {
     return [...dependencyStatuses.values()].filter((status) => status.severity === 'error').length
@@ -1102,10 +1148,10 @@ function App(): React.JSX.Element {
             </div>
 
             <div className="status-card">
-              <div className="status-label">Dependencies</div>
+              <div className="status-label">Warnings</div>
               <div className="status-value">
                 {dependencyErrorCount > 0 || dependencyWarningCount > 0
-                  ? `${dependencyErrorCount} missing / ${dependencyWarningCount} warning`
+                  ? `${dependencyErrorCount} blocking / ${dependencyWarningCount} warning`
                   : 'OK'}
               </div>
             </div>

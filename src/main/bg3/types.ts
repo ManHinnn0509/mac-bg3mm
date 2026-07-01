@@ -59,11 +59,17 @@ export type ModInfo = {
   dependencies: ModDependency[]
 }
 
+export type ScriptExtenderInfo = {
+  required: boolean
+  detectedPaths: string[]
+}
+
 export type PakModInfo = {
   pakPath: string
   pakFileName: string
   pakVersion: number
   metaPath: string
   lastModifiedMs: number
+  scriptExtender: ScriptExtenderInfo
   mod: ModInfo
 }

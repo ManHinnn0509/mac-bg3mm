@@ -256,6 +256,22 @@ function findMetaEntry(entries: PakEntry[]): PakEntry {
   )
 }
 
+function findScriptExtenderEntryPaths(entries: PakEntry[]): string[] {
+  return entries
+    .map((entry) => entry.name)
+    .filter((name) => {
+      const normalized = normalizePakEntryName(name)
+
+      return (
+        normalized.includes('/scriptextender/') ||
+        normalized.startsWith('scriptextender/') ||
+        normalized.endsWith('/scriptextender/config.json') ||
+        normalized.endsWith('/scriptextender/settings.json')
+      )
+    })
+    .sort()
+}
+
 function decompressEntryPayload(entry: PakEntry, payload: Buffer): Buffer {
   const method = entry.compressionMethod
 
@@ -328,12 +344,18 @@ export async function readPakModInfo(pakPath: string): Promise<PakModInfo> {
   const mod = parseMetaLsx(metaBytes)
   const pakStats = await stat(pakPath)
 
+  const scriptExtenderPaths = findScriptExtenderEntryPaths(entriesInfo.entries)
+
   return {
     pakPath,
     pakFileName: basename(pakPath),
     pakVersion: entriesInfo.pakVersion,
     metaPath: metaEntry.name,
     lastModifiedMs: pakStats.mtimeMs,
+    scriptExtender: {
+      required: scriptExtenderPaths.length > 0,
+      detectedPaths: scriptExtenderPaths
+    },
     mod
   }
 }

@@ -486,3 +486,47 @@ button:disabled {
 .mod-table-row.dependency-warning:hover {
   background: #342d17;
 }
+
+.mod-name-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dependency-badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dependency-badge-error {
+  border: 1px solid #aa4a4a;
+  background: #3a1f1f;
+  color: #ffb4b4;
+}
+
+.dependency-badge-warning {
+  border: 1px solid #9b7a30;
+  background: #332815;
+  color: #ffd98a;
+}
+
+.mod-table-row.dependency-error {
+  background: #2a1818;
+}
+
+.mod-table-row.dependency-error:hover {
+  background: #341d1d;
+}
+
+.mod-table-row.dependency-warning {
+  background: #282312;
+}
+
+.mod-table-row.dependency-warning:hover {
+  background: #342d17;
+}

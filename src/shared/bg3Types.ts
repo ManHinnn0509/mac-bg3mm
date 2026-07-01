@@ -52,12 +52,18 @@ export type ModInfoDto = {
   dependencies: ModDependencyDto[]
 }
 
+export type ScriptExtenderInfoDto = {
+  required: boolean
+  detectedPaths: string[]
+}
+
 export type PakModInfoDto = {
   pakPath: string
   pakFileName: string
   pakVersion: number
   metaPath: string
   lastModifiedMs: number
+  scriptExtender: ScriptExtenderInfoDto
   mod: ModInfoDto
 }
 
@@ -69,6 +75,7 @@ export type PakScanErrorDto = {
 
 export type ModsFolderScanResultDto = {
   folderPath: string
+  platform: string
   mods: PakModInfoDto[]
   errors: PakScanErrorDto[]
 }
