@@ -29,3 +29,34 @@ export type PakEntriesInfoDto = PakBasicInfoDto & {
   numberOfFiles: number
   entries: PakEntryDto[]
 }
+
+export type ModDependencyDto = {
+  name: string | null
+  folder: string | null
+  uuid: string | null
+  version64: string | null
+  version: string | null
+  rawInfo: Record<string, string>
+}
+
+export type ModInfoDto = {
+  name: string | null
+  folder: string | null
+  uuid: string | null
+  author: string | null
+  description: string | null
+  type: string | null
+  version64: string | null
+  version: string | null
+  rawModuleInfo: Record<string, string>
+  dependencies: ModDependencyDto[]
+}
+
+export type PakModInfoDto = {
+  pakPath: string
+  pakFileName: string
+  pakVersion: number
+  metaPath: string
+  lastModifiedMs: number
+  mod: ModInfoDto
+}

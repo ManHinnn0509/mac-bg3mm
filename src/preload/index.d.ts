@@ -1,7 +1,5 @@
-// src/preload/index.d.ts
-
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { PakBasicInfoDto, PakEntriesInfoDto } from '../shared/bg3Types'
+import type { PakBasicInfoDto, PakEntriesInfoDto, PakModInfoDto } from '../shared/bg3Types'
 
 declare global {
   interface Window {
@@ -9,6 +7,7 @@ declare global {
     api: {
       selectPakAndReadBasicInfo: () => Promise<PakBasicInfoDto | null>
       selectPakAndReadEntriesInfo: () => Promise<PakEntriesInfoDto | null>
+      selectPakAndReadModInfo: () => Promise<PakModInfoDto | null>
     }
   }
 }

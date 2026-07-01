@@ -1,6 +1,8 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
+import { inflateSync } from 'node:zlib'
 import { decompressLz4Block } from './lz4Block'
+import { parseMetaLsx } from './metaParser'
 import {
   PakError,
   type PakBasicInfo,
@@ -73,6 +75,10 @@ function fixedString(raw: Buffer): string {
   const end = nullIndex === -1 ? raw.length : nullIndex
 
   return raw.toString('utf8', 0, end)
+}
+
+function normalizePakEntryName(name: string): string {
+  return name.replaceAll('\\', '/').toLowerCase()
 }
 
 function readHeader(reader: BufferReader, version: number): PakHeader {
@@ -196,17 +202,7 @@ function readEntriesV18(data: Buffer, count: number): PakEntry[] {
   return entries
 }
 
-export async function readPakBasicInfo(pakPath: string): Promise<PakBasicInfo> {
-  const buffer = await readFile(pakPath)
-  const reader = new BufferReader(buffer)
-
-  return readPakBasicInfoFromReader(reader, pakPath)
-}
-
-export async function readPakEntriesInfo(pakPath: string): Promise<PakEntriesInfo> {
-  const buffer = await readFile(pakPath)
-  const reader = new BufferReader(buffer)
-
+function readPakEntriesInfoFromReader(reader: BufferReader, pakPath: string): PakEntriesInfo {
   const basicInfo = readPakBasicInfoFromReader(reader, pakPath)
 
   if (![15, 16, 18].includes(basicInfo.pakVersion)) {
@@ -236,6 +232,108 @@ export async function readPakEntriesInfo(pakPath: string): Promise<PakEntriesInf
   }
 }
 
+function findMetaEntry(entries: PakEntry[]): PakEntry {
+  const candidates = entries.filter((entry) => {
+    const name = normalizePakEntryName(entry.name)
+
+    return name.endsWith('/meta.lsx') || name === 'meta.lsx'
+  })
+
+  if (candidates.length > 0) {
+    return candidates[0]
+  }
+
+  const possible = entries
+    .map((entry) => entry.name)
+    .filter((name) => {
+      const normalized = name.toLowerCase()
+      return normalized.includes('meta') || normalized.endsWith('.lsx')
+    })
+    .slice(0, 20)
+
+  throw new PakError(
+    `No meta.lsx found in pak. Possible related entries: ${JSON.stringify(possible)}`
+  )
+}
+
+function decompressEntryPayload(entry: PakEntry, payload: Buffer): Buffer {
+  const method = entry.compressionMethod
+
+  if (method === 0x00) {
+    return payload
+  }
+
+  if (method === 0x01) {
+    try {
+      return inflateSync(payload)
+    } catch (error) {
+      throw new PakError(
+        `Failed to decompress ${entry.name} with zlib: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    }
+  }
+
+  if (method === 0x02) {
+    return decompressLz4Block(payload, entry.uncompressedSize)
+  }
+
+  if (method === 0x03) {
+    throw new PakError(
+      `Zstandard-compressed entry is not supported yet: ${entry.name}. ` +
+        `We can add zstd support later if this pak needs it.`
+    )
+  }
+
+  throw new PakError(`Unsupported compression method ${method} for ${entry.name}`)
+}
+
+function readEntryBytesFromBuffer(buffer: Buffer, entry: PakEntry): Buffer {
+  const offset = bigintToSafeNumber(entry.offset, `${entry.name}.offset`)
+  const end = offset + entry.sizeOnDisk
+
+  if (offset < 0 || end > buffer.length) {
+    throw new PakError(
+      `Entry ${entry.name} points outside pak buffer: offset=${offset}, end=${end}, buffer=${buffer.length}`
+    )
+  }
+
+  const payload = buffer.subarray(offset, end)
+
+  return decompressEntryPayload(entry, payload)
+}
+
+export async function readPakBasicInfo(pakPath: string): Promise<PakBasicInfo> {
+  const buffer = await readFile(pakPath)
+  const reader = new BufferReader(buffer)
+
+  return readPakBasicInfoFromReader(reader, pakPath)
+}
+
+export async function readPakEntriesInfo(pakPath: string): Promise<PakEntriesInfo> {
+  const buffer = await readFile(pakPath)
+  const reader = new BufferReader(buffer)
+
+  return readPakEntriesInfoFromReader(reader, pakPath)
+}
+
 export async function readPakModInfo(pakPath: string): Promise<PakModInfo> {
-  throw new Error(`readPakModInfo is not implemented yet: ${pakPath}`)
+  const buffer = await readFile(pakPath)
+  const reader = new BufferReader(buffer)
+
+  const entriesInfo = readPakEntriesInfoFromReader(reader, pakPath)
+  const metaEntry = findMetaEntry(entriesInfo.entries)
+  const metaBytes = readEntryBytesFromBuffer(buffer, metaEntry)
+  const mod = parseMetaLsx(metaBytes)
+  const pakStats = await stat(pakPath)
+
+  return {
+    pakPath,
+    pakFileName: basename(pakPath),
+    pakVersion: entriesInfo.pakVersion,
+    metaPath: metaEntry.name,
+    lastModifiedMs: pakStats.mtimeMs,
+    mod
+  }
 }

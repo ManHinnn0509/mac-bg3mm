@@ -3,8 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-import { readPakBasicInfo, readPakEntriesInfo } from './bg3/pakReader'
-import type { PakBasicInfoDto, PakEntriesInfoDto } from '../shared/bg3Types'
+import { readPakBasicInfo, readPakEntriesInfo, readPakModInfo } from './bg3/pakReader'
+import type { PakBasicInfoDto, PakEntriesInfoDto, PakModInfoDto } from '../shared/bg3Types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -71,6 +71,35 @@ app.whenReady().then(() => {
     }
   }
 
+  function toPakModInfoDto(info: Awaited<ReturnType<typeof readPakModInfo>>): PakModInfoDto {
+    return {
+      pakPath: info.pakPath,
+      pakFileName: info.pakFileName,
+      pakVersion: info.pakVersion,
+      metaPath: info.metaPath,
+      lastModifiedMs: info.lastModifiedMs,
+      mod: {
+        name: info.mod.name,
+        folder: info.mod.folder,
+        uuid: info.mod.uuid,
+        author: info.mod.author,
+        description: info.mod.description,
+        type: info.mod.type,
+        version64: info.mod.version64,
+        version: info.mod.version,
+        rawModuleInfo: info.mod.rawModuleInfo,
+        dependencies: info.mod.dependencies.map((dependency) => ({
+          name: dependency.name,
+          folder: dependency.folder,
+          uuid: dependency.uuid,
+          version64: dependency.version64,
+          version: dependency.version,
+          rawInfo: dependency.rawInfo
+        }))
+      }
+    }
+  }
+
   function toPakEntriesInfoDto(
     info: Awaited<ReturnType<typeof readPakEntriesInfo>>
   ): PakEntriesInfoDto {
@@ -133,6 +162,28 @@ app.whenReady().then(() => {
       const info = await readPakEntriesInfo(pakPath)
 
       return toPakEntriesInfoDto(info)
+    })
+
+    ipcMain.handle('bg3:selectPakAndReadModInfo', async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Select BG3 .pak file',
+        properties: ['openFile'],
+        filters: [
+          {
+            name: 'BG3 Pak Files',
+            extensions: ['pak']
+          }
+        ]
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const pakPath = result.filePaths[0]
+      const info = await readPakModInfo(pakPath)
+
+      return toPakModInfoDto(info)
     })
   }
 
