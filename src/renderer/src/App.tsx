@@ -1,11 +1,9 @@
-// src/renderer/src/App.tsx
+import { useEffect, useState } from 'react'
 
-import { useState } from 'react'
-
-type ScanResultState = Awaited<ReturnType<typeof window.api.selectModsFolderAndScan>>
+type ScanResultState = Awaited<ReturnType<typeof window.api.scanDefaultModsFolder>>
 
 function App(): React.JSX.Element {
-  const [scanResult, setScanResult] = useState<ScanResultState>(null)
+  const [scanResult, setScanResult] = useState<ScanResultState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
@@ -14,7 +12,7 @@ function App(): React.JSX.Element {
     setIsScanning(true)
 
     try {
-      const result = await window.api.selectModsFolderAndScan()
+      const result = await window.api.scanDefaultModsFolder()
       setScanResult(result)
     } catch (err) {
       setScanResult(null)
@@ -24,6 +22,10 @@ function App(): React.JSX.Element {
     }
   }
 
+  useEffect(() => {
+    void handleScanModsFolder()
+  }, [])
+
   const mods = scanResult?.mods ?? []
   const scanErrors = scanResult?.errors ?? []
 
@@ -32,7 +34,7 @@ function App(): React.JSX.Element {
       <h1>BG3 Mod Manager</h1>
 
       <button onClick={handleScanModsFolder} disabled={isScanning}>
-        {isScanning ? 'Scanning...' : 'Select Mods Folder and Scan'}
+        {isScanning ? 'Scanning...' : 'Refresh Mods'}
       </button>
 
       {error && (
@@ -41,7 +43,7 @@ function App(): React.JSX.Element {
 
       {scanResult && (
         <section style={{ marginTop: 24 }}>
-          <h2>Scan Result</h2>
+          <h2>Mods Folder</h2>
 
           <p>
             Folder: <strong>{scanResult.folderPath}</strong>
@@ -158,7 +160,7 @@ function App(): React.JSX.Element {
 
       {!scanResult && !error && (
         <p style={{ marginTop: 16 }}>
-          Choose your BG3 Mods folder. The app will scan all .pak files and read their meta.lsx.
+          The app will automatically scan the default BG3 Mods folder.
         </p>
       )}
     </main>

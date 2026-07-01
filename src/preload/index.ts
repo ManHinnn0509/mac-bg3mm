@@ -21,8 +21,8 @@ const api = {
     return ipcRenderer.invoke('bg3:selectPakAndReadModInfo')
   },
 
-  selectModsFolderAndScan: (): Promise<ModsFolderScanResultDto | null> => {
-    return ipcRenderer.invoke('bg3:selectModsFolderAndScan')
+  scanDefaultModsFolder: (): Promise<ModsFolderScanResultDto> => {
+    return ipcRenderer.invoke('bg3:scanDefaultModsFolder')
   }
 }
 

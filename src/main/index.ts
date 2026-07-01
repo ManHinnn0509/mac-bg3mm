@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 
 import { readPakBasicInfo, readPakEntriesInfo, readPakModInfo } from './bg3/pakReader'
 import { scanModsFolder } from './bg3/scanModsFolder'
+import { getDefaultBg3ModsFolderPath } from './bg3/bg3Paths'
 
 import type {
   ModsFolderScanResultDto,
@@ -207,18 +208,8 @@ app.whenReady().then(() => {
       return toPakModInfoDto(info)
     })
 
-
-    ipcMain.handle('bg3:selectModsFolderAndScan', async () => {
-      const result = await dialog.showOpenDialog({
-        title: 'Select BG3 Mods Folder',
-        properties: ['openDirectory']
-      })
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return null
-      }
-
-      const folderPath = result.filePaths[0]
+    ipcMain.handle('bg3:scanDefaultModsFolder', async () => {
+      const folderPath = getDefaultBg3ModsFolderPath()
       const scanResult = await scanModsFolder(folderPath)
 
       return toModsFolderScanResultDto(scanResult)

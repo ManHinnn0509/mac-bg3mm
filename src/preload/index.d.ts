@@ -14,7 +14,7 @@ declare global {
       selectPakAndReadBasicInfo: () => Promise<PakBasicInfoDto | null>
       selectPakAndReadEntriesInfo: () => Promise<PakEntriesInfoDto | null>
       selectPakAndReadModInfo: () => Promise<PakModInfoDto | null>
-      selectModsFolderAndScan: () => Promise<ModsFolderScanResultDto | null>
+      scanDefaultModsFolder: () => Promise<ModsFolderScanResultDto>
     }
   }
 }
