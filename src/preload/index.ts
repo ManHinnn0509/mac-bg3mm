@@ -6,7 +6,9 @@ import type {
   PakBasicInfoDto,
   PakEntriesInfoDto,
   PakModInfoDto,
-  ProfilesStateDto
+  ProfilesStateDto,
+  ModuleShortDescInputDto,
+  ModSettingsExportResultDto
 } from '../shared/bg3Types'
 
 const api = {
@@ -32,6 +34,12 @@ const api = {
 
   saveProfiles: (state: ProfilesStateDto): Promise<ProfilesStateDto> => {
     return ipcRenderer.invoke('profiles:save', state)
+  },
+
+  exportModSettings: (
+    enabledMods: ModuleShortDescInputDto[]
+  ): Promise<ModSettingsExportResultDto> => {
+    return ipcRenderer.invoke('bg3:exportModSettings', enabledMods)
   }
 }
 

@@ -83,3 +83,16 @@ export type ProfilesStateDto = {
   activeProfileId: string
   profiles: ModProfileDto[]
 }
+
+export type ModuleShortDescInputDto = {
+  folder: string
+  name: string
+  uuid: string
+  version64: string
+}
+
+export type ModSettingsExportResultDto = {
+  modSettingsPath: string
+  backupPath: string | null
+  exportedMods: number
+}

@@ -113,6 +113,28 @@ function getModDisplayName(mod: ModItem): string {
   return mod.mod.name ?? mod.pakFileName
 }
 
+type ModuleShortDescInput = Parameters<typeof window.api.exportModSettings>[0][number]
+
+function getMissingExportFields(mod: ModItem): string[] {
+  const missing: string[] = []
+
+  if (!mod.mod.folder) missing.push('Folder')
+  if (!mod.mod.name) missing.push('Name')
+  if (!mod.mod.uuid) missing.push('UUID')
+  if (!mod.mod.version64) missing.push('Version64')
+
+  return missing
+}
+
+function toModuleShortDescInput(mod: ModItem): ModuleShortDescInput {
+  return {
+    folder: mod.mod.folder ?? '',
+    name: mod.mod.name ?? '',
+    uuid: mod.mod.uuid ?? '',
+    version64: mod.mod.version64 ?? ''
+  }
+}
+
 function findActiveProfile(profilesState: ProfilesState | null): ProfilesState['profiles'][number] | null {
   if (!profilesState) return null
 
@@ -275,6 +297,8 @@ function App(): React.JSX.Element {
   const [isScanning, setIsScanning] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [activeDragModId, setActiveDragModId] = useState<string | null>(null)
   const [isSaveAsOpen, setIsSaveAsOpen] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
@@ -292,6 +316,7 @@ function App(): React.JSX.Element {
   )
 
   async function loadInitialData(): Promise<void> {
+    setSuccessMessage(null)
     setError(null)
     setIsScanning(true)
 
@@ -314,6 +339,7 @@ function App(): React.JSX.Element {
   }
 
   async function handleRefreshMods(): Promise<void> {
+    setSuccessMessage(null)
     setError(null)
     setIsScanning(true)
 
@@ -329,6 +355,7 @@ function App(): React.JSX.Element {
   }
 
   async function handleSaveProfile(): Promise<void> {
+    setSuccessMessage(null)
     if (!profilesState) return
 
     setError(null)
@@ -345,7 +372,48 @@ function App(): React.JSX.Element {
     }
   }
 
+  async function handleExportToBg3(): Promise<void> {
+    setError(null)
+    setSuccessMessage(null)
+    setIsExporting(true)
+
+    try {
+      const invalidMods = enabledMods
+        .map((mod) => ({
+          name: getModDisplayName(mod),
+          missing: getMissingExportFields(mod)
+        }))
+        .filter((item) => item.missing.length > 0)
+
+      if (invalidMods.length > 0) {
+        setError(
+          [
+            'Cannot export to BG3 because some enabled mods are missing required fields:',
+            ...invalidMods.map((item) => `- ${item.name}: ${item.missing.join(', ')}`)
+          ].join('\n')
+        )
+        return
+      }
+
+      const exportMods = enabledMods.map(toModuleShortDescInput)
+      const result = await window.api.exportModSettings(exportMods)
+
+      setSuccessMessage(
+        [
+          `Exported ${result.exportedMods} enabled mod(s) to BG3.`,
+          `Path: ${result.modSettingsPath}`,
+          result.backupPath ? `Backup: ${result.backupPath}` : 'Backup: no previous modsettings.lsx existed'
+        ].join('\n')
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   function handleOpenSaveProfileAs(): void {
+    setSuccessMessage(null)
     const baseName = activeProfile?.name ?? 'New Profile'
 
     setError(null)
@@ -409,6 +477,7 @@ function App(): React.JSX.Element {
   }
 
   function handleSelectProfile(profileId: string): void {
+    setSuccessMessage(null)
     if (!profilesState) return
     if (profileId === profilesState.activeProfileId) return
 
@@ -419,6 +488,7 @@ function App(): React.JSX.Element {
   }
 
   function updateActiveProfileEnabledIds(nextEnabledIds: string[]): void {
+    setSuccessMessage(null)
     setProfilesState((current) => {
       if (!current) return current
 
@@ -618,6 +688,14 @@ function App(): React.JSX.Element {
             Save Profile As...
           </button>
 
+          <button
+            onClick={handleExportToBg3}
+            disabled={!profilesState || hasUnsavedChanges || isExporting}
+            title={hasUnsavedChanges ? 'Save profile before exporting to BG3' : undefined}
+          >
+            {isExporting ? 'Exporting...' : 'Export to BG3'}
+          </button>
+
           <button onClick={handleRefreshMods} disabled={isScanning}>
             {isScanning ? 'Scanning...' : 'Refresh Mods'}
           </button>
@@ -627,6 +705,7 @@ function App(): React.JSX.Element {
       <div className="app-content">
         <main className="main-panel">
           {error && <div className="error-box">{error}</div>}
+          {successMessage && <div className="success-box">{successMessage}</div>}
 
           <section className="status-row">
             <div className="status-card">

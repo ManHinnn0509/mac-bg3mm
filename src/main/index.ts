@@ -7,13 +7,16 @@ import { readPakBasicInfo, readPakEntriesInfo, readPakModInfo } from './bg3/pakR
 import { scanModsFolder } from './bg3/scanModsFolder'
 import { getDefaultBg3ModsFolderPath } from './bg3/bg3Paths'
 import { loadProfilesState, saveProfilesState } from './profiles/profileStore'
+import { exportModSettings } from './bg3/modsettingsWriter'
 
 import type {
   ModsFolderScanResultDto,
   PakBasicInfoDto,
   PakEntriesInfoDto,
   PakModInfoDto,
-  ProfilesStateDto
+  ProfilesStateDto,
+  ModuleShortDescInputDto,
+  ModSettingsExportResultDto
 } from '../shared/bg3Types'
 
 function createWindow(): void {
@@ -225,6 +228,13 @@ app.whenReady().then(() => {
       'profiles:save',
       async (_event, state: ProfilesStateDto): Promise<ProfilesStateDto> => {
         return saveProfilesState(state)
+      }
+    )
+
+    ipcMain.handle(
+      'bg3:exportModSettings',
+      async (_event, enabledMods: ModuleShortDescInputDto[]): Promise<ModSettingsExportResultDto> => {
+        return exportModSettings(enabledMods)
       }
     )
 
