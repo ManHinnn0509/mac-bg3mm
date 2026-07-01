@@ -13,3 +13,19 @@ export type PakBasicInfoDto = {
   pakVersion: number
   header: PakHeaderDto
 }
+
+export type PakEntryDto = {
+  name: string
+  archivePart: number
+  compressionMethod: number
+  compressionLevel: number
+  offset: string
+  sizeOnDisk: number
+  uncompressedSize: number
+  crc?: number
+}
+
+export type PakEntriesInfoDto = PakBasicInfoDto & {
+  numberOfFiles: number
+  entries: PakEntryDto[]
+}

@@ -1,10 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { PakBasicInfoDto } from '../shared/bg3Types'
+import type { PakBasicInfoDto, PakEntriesInfoDto } from '../shared/bg3Types'
 
 const api = {
   selectPakAndReadBasicInfo: (): Promise<PakBasicInfoDto | null> => {
     return ipcRenderer.invoke('bg3:selectPakAndReadBasicInfo')
+  },
+
+  selectPakAndReadEntriesInfo: (): Promise<PakEntriesInfoDto | null> => {
+    return ipcRenderer.invoke('bg3:selectPakAndReadEntriesInfo')
   }
 }
 

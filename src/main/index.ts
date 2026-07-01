@@ -3,8 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-import { readPakBasicInfo } from './bg3/pakReader'
-import type { PakBasicInfoDto } from '../shared/bg3Types'
+import { readPakBasicInfo, readPakEntriesInfo } from './bg3/pakReader'
+import type { PakBasicInfoDto, PakEntriesInfoDto } from '../shared/bg3Types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -71,6 +71,25 @@ app.whenReady().then(() => {
     }
   }
 
+  function toPakEntriesInfoDto(
+    info: Awaited<ReturnType<typeof readPakEntriesInfo>>
+  ): PakEntriesInfoDto {
+    return {
+      ...toPakBasicInfoDto(info),
+      numberOfFiles: info.numberOfFiles,
+      entries: info.entries.map((entry) => ({
+        name: entry.name,
+        archivePart: entry.archivePart,
+        compressionMethod: entry.compressionMethod,
+        compressionLevel: entry.compressionLevel,
+        offset: entry.offset.toString(),
+        sizeOnDisk: entry.sizeOnDisk,
+        uncompressedSize: entry.uncompressedSize,
+        crc: entry.crc
+      }))
+    }
+  }
+
   function registerBg3Ipc(): void {
     ipcMain.handle('bg3:selectPakAndReadBasicInfo', async () => {
       const result = await dialog.showOpenDialog({
@@ -92,6 +111,28 @@ app.whenReady().then(() => {
       const info = await readPakBasicInfo(pakPath)
 
       return toPakBasicInfoDto(info)
+    })
+
+    ipcMain.handle('bg3:selectPakAndReadEntriesInfo', async () => {
+      const result = await dialog.showOpenDialog({
+        title: 'Select BG3 .pak file',
+        properties: ['openFile'],
+        filters: [
+          {
+            name: 'BG3 Pak Files',
+            extensions: ['pak']
+          }
+        ]
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const pakPath = result.filePaths[0]
+      const info = await readPakEntriesInfo(pakPath)
+
+      return toPakEntriesInfoDto(info)
     })
   }
 

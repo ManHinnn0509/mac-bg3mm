@@ -21,6 +21,11 @@ export type PakBasicInfo = {
   header: PakHeader
 }
 
+export type PakEntriesInfo = PakBasicInfo & {
+  numberOfFiles: number
+  entries: PakEntry[]
+}
+
 export type PakEntry = {
   name: string
   archivePart: number
