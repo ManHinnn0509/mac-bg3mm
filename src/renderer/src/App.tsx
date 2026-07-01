@@ -494,19 +494,29 @@ function App(): React.JSX.Element {
     setSuccessMessage(null)
     setIsExporting(true)
 
-    if (dependencyErrorCount > 0) {
-      const dependencyErrors = [...dependencyStatuses.entries()]
-        .filter(([, status]) => status.severity === 'error')
-        .map(([modId, status]) => {
-          const mod = modsById.get(modId)
-          return [`- ${mod ? getModDisplayName(mod) : modId}`, ...status.messages.map((message) => `  ${message}`)].join('\n')
-        })
-
-      setError(['Cannot export to BG3 because enabled mods have missing dependencies:', ...dependencyErrors].join('\n'))
-      return
-    }
-
     try {
+      if (dependencyErrorCount > 0) {
+        const dependencyErrors = [...dependencyStatuses.entries()]
+          .filter(([, status]) => status.severity === 'error')
+          .map(([modId, status]) => {
+            const mod = modsById.get(modId)
+
+            return [
+              `- ${mod ? getModDisplayName(mod) : modId}`,
+              ...status.messages.map((message) => `  ${message}`)
+            ].join('\n')
+          })
+
+        setError(
+          [
+            'Cannot export to BG3 because enabled mods have missing dependencies:',
+            ...dependencyErrors
+          ].join('\n')
+        )
+
+        return
+      }
+
       const invalidMods = enabledMods
         .map((mod) => ({
           name: getModDisplayName(mod),
@@ -521,6 +531,7 @@ function App(): React.JSX.Element {
             ...invalidMods.map((item) => `- ${item.name}: ${item.missing.join(', ')}`)
           ].join('\n')
         )
+
         return
       }
 
