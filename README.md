@@ -1,10 +1,10 @@
-# ez-bg3mm
+# mac-bg3mm
 
-Just a really simple BG3 mod manager, drag and drop to enable/disable/rearrange mods
+Just a really simple BG3 mod manager, mainly for Mac but should work as well on Linux/Windows (Need to be tested)
+
+Drag and drop to enable/disable/rearrange mods
 
 Made this because I can only play BG3 on my MacBook right now and I really needed a mod manager...
-
-Should also works on Windows (Need to be tested)
 
 ## Project Setup
 
