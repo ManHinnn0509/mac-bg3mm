@@ -27,6 +27,13 @@ type ColumnWidths = Record<ColumnKey, number>
 
 type ContainerId = 'enabled-mods' | 'disabled-mods'
 
+type DependencySeverity = 'none' | 'warning' | 'error'
+
+type DependencyStatus = {
+  severity: DependencySeverity
+  messages: string[]
+}
+
 const ENABLED_CONTAINER_ID: ContainerId = 'enabled-mods'
 const DISABLED_CONTAINER_ID: ContainerId = 'disabled-mods'
 
@@ -113,6 +120,86 @@ function getModDisplayName(mod: ModItem): string {
   return mod.mod.name ?? mod.pakFileName
 }
 
+function normalizeDependencyKey(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase()
+
+  return normalized ? normalized : null
+}
+
+function getDependencyDisplayName(dependency: ModItem['mod']['dependencies'][number]): string {
+  return dependency.name ?? dependency.folder ?? dependency.uuid ?? 'Unknown dependency'
+}
+
+function findDependencyMod(
+  dependency: ModItem['mod']['dependencies'][number],
+  allMods: ModItem[]
+): ModItem | null {
+  const dependencyUuid = normalizeDependencyKey(dependency.uuid)
+  const dependencyFolder = normalizeDependencyKey(dependency.folder)
+  const dependencyName = normalizeDependencyKey(dependency.name)
+
+  return (
+    allMods.find((mod) => {
+      const modUuid = normalizeDependencyKey(mod.mod.uuid)
+      const modFolder = normalizeDependencyKey(mod.mod.folder)
+      const modName = normalizeDependencyKey(mod.mod.name)
+
+      if (dependencyUuid && modUuid === dependencyUuid) return true
+      if (dependencyFolder && modFolder === dependencyFolder) return true
+      if (dependencyName && modName === dependencyName) return true
+
+      return false
+    }) ?? null
+  )
+}
+
+function getDependencyStatus(
+  mod: ModItem,
+  allMods: ModItem[],
+  enabledModIds: string[]
+): DependencyStatus {
+  const messages: string[] = []
+  let severity: DependencySeverity = 'none'
+
+  const currentModId = getModId(mod)
+  const currentIndex = enabledModIds.indexOf(currentModId)
+  const enabledIdSet = new Set(enabledModIds)
+
+  for (const dependency of mod.mod.dependencies) {
+    const dependencyMod = findDependencyMod(dependency, allMods)
+    const dependencyName = getDependencyDisplayName(dependency)
+
+    if (!dependencyMod) {
+      severity = 'error'
+      messages.push(`Missing dependency: ${dependencyName}`)
+      continue
+    }
+
+    const dependencyModId = getModId(dependencyMod)
+    const dependencyIndex = enabledModIds.indexOf(dependencyModId)
+
+    if (!enabledIdSet.has(dependencyModId)) {
+      if (severity !== 'error') severity = 'warning'
+      messages.push(`Dependency is installed but disabled: ${getModDisplayName(dependencyMod)}`)
+      continue
+    }
+
+    if (dependencyIndex > currentIndex) {
+      if (severity !== 'error') severity = 'warning'
+      messages.push(
+        `Load order issue: ${getModDisplayName(dependencyMod)} should be above ${getModDisplayName(
+          mod
+        )}`
+      )
+    }
+  }
+
+  return {
+    severity,
+    messages
+  }
+}
+
 type ModuleShortDescInput = Parameters<typeof window.api.exportModSettings>[0][number]
 
 function getMissingExportFields(mod: ModItem): string[] {
@@ -171,12 +258,29 @@ function uniqueExistingEnabledIds(enabledIds: string[], allMods: ModItem[]): str
   return result
 }
 
-function ModRowContent({ mod }: { mod: ModItem }): React.JSX.Element {
+function ModRowContent({
+  mod,
+  dependencyStatus
+}: {
+  mod: ModItem
+  dependencyStatus?: DependencyStatus
+}): React.JSX.Element {
   return (
     <>
       <div className="mod-table-cell">
-        <div className="mod-name" title={getModDisplayName(mod)}>
-          {getModDisplayName(mod)}
+        <div className="mod-name-line">
+          <div className="mod-name" title={getModDisplayName(mod)}>
+            {getModDisplayName(mod)}
+          </div>
+
+          {dependencyStatus && dependencyStatus.severity !== 'none' && (
+            <span
+              className={`dependency-badge dependency-badge-${dependencyStatus.severity}`}
+              title={dependencyStatus.messages.join('\n')}
+            >
+              {dependencyStatus.severity === 'error' ? 'Missing dependency' : 'Dependency warning'}
+            </span>
+          )}
         </div>
 
         <div className="mod-meta" title={mod.pakFileName}>
@@ -201,10 +305,12 @@ function ModRowContent({ mod }: { mod: ModItem }): React.JSX.Element {
 
 function SortableModRow({
   mod,
-  gridTemplateColumns
+  gridTemplateColumns,
+  dependencyStatus
 }: {
   mod: ModItem
   gridTemplateColumns: string
+  dependencyStatus?: DependencyStatus
 }): React.JSX.Element {
   const id = getModId(mod)
 
@@ -224,7 +330,7 @@ function SortableModRow({
       {...attributes}
       {...listeners}
     >
-      <ModRowContent mod={mod} />
+      <ModRowContent mod={mod} dependencyStatus={dependencyStatus} />
     </div>
   )
 }
@@ -235,7 +341,8 @@ function ModTable({
   mods,
   emptyMessage,
   columnWidths,
-  onStartResize
+  onStartResize,
+  dependencyStatuses
 }: {
   containerId: ContainerId
   title: string
@@ -243,6 +350,7 @@ function ModTable({
   emptyMessage: string
   columnWidths: ColumnWidths
   onStartResize: (columnKey: ColumnKey, event: React.MouseEvent<HTMLDivElement>) => void
+  dependencyStatuses?: Map<string, DependencyStatus>
 }): React.JSX.Element {
   const gridTemplateColumns = createGridTemplate(columnWidths)
   const { setNodeRef, isOver } = useDroppable({ id: containerId })
@@ -275,13 +383,18 @@ function ModTable({
             {mods.length === 0 ? (
               <div className="empty-state">{emptyMessage}</div>
             ) : (
-              mods.map((mod) => (
-                <SortableModRow
-                  key={getModId(mod)}
-                  mod={mod}
-                  gridTemplateColumns={gridTemplateColumns}
-                />
-              ))
+              mods.map((mod) => {
+                const modId = getModId(mod)
+
+                return (
+                  <SortableModRow
+                    key={modId}
+                    mod={mod}
+                    gridTemplateColumns={gridTemplateColumns}
+                    dependencyStatus={dependencyStatuses?.get(modId)}
+                  />
+                )
+                })
             )}
           </SortableContext>
         </div>
@@ -380,6 +493,18 @@ function App(): React.JSX.Element {
     setError(null)
     setSuccessMessage(null)
     setIsExporting(true)
+
+    if (dependencyErrorCount > 0) {
+      const dependencyErrors = [...dependencyStatuses.entries()]
+        .filter(([, status]) => status.severity === 'error')
+        .map(([modId, status]) => {
+          const mod = modsById.get(modId)
+          return [`- ${mod ? getModDisplayName(mod) : modId}`, ...status.messages.map((message) => `  ${message}`)].join('\n')
+        })
+
+      setError(['Cannot export to BG3 because enabled mods have missing dependencies:', ...dependencyErrors].join('\n'))
+      return
+    }
 
     try {
       const invalidMods = enabledMods
@@ -663,6 +788,25 @@ function App(): React.JSX.Element {
     return allMods.filter((mod) => !enabledSet.has(getModId(mod)))
   }, [allMods, enabledModIds])
 
+
+  const dependencyStatuses = useMemo(() => {
+    const map = new Map<string, DependencyStatus>()
+
+    for (const mod of enabledMods) {
+      map.set(getModId(mod), getDependencyStatus(mod, allMods, enabledModIds))
+    }
+
+    return map
+  }, [enabledMods, allMods, enabledModIds])
+
+  const dependencyErrorCount = useMemo(() => {
+    return [...dependencyStatuses.values()].filter((status) => status.severity === 'error').length
+  }, [dependencyStatuses])
+
+  const dependencyWarningCount = useMemo(() => {
+    return [...dependencyStatuses.values()].filter((status) => status.severity === 'warning').length
+  }, [dependencyStatuses])
+
   const activeDragMod = activeDragModId ? modsById.get(activeDragModId) ?? null : null
   const scanErrors = scanResult?.errors ?? []
 
@@ -945,6 +1089,15 @@ function App(): React.JSX.Element {
               <div className="status-label">Errors</div>
               <div className="status-value">{scanErrors.length}</div>
             </div>
+
+            <div className="status-card">
+              <div className="status-label">Dependencies</div>
+              <div className="status-value">
+                {dependencyErrorCount > 0 || dependencyWarningCount > 0
+                  ? `${dependencyErrorCount} missing / ${dependencyWarningCount} warning`
+                  : 'OK'}
+              </div>
+            </div>
           </section>
 
           <DndContext
@@ -961,6 +1114,7 @@ function App(): React.JSX.Element {
                 emptyMessage="Drag mods here to enable them."
                 columnWidths={enabledColumns.widths}
                 onStartResize={enabledColumns.startResize}
+                dependencyStatuses={dependencyStatuses}
               />
 
               <ModTable
