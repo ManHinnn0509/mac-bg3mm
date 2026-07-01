@@ -1,6 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type ScanResultState = Awaited<ReturnType<typeof window.api.scanDefaultModsFolder>>
+type ModItem = ScanResultState['mods'][number]
+
+function formatDate(ms: number): string {
+  return new Date(ms).toLocaleString()
+}
+
+function getModDisplayName(mod: ModItem): string {
+  return mod.mod.name ?? mod.pakFileName
+}
+
+function ModRow({ mod }: { mod: ModItem }): React.JSX.Element {
+  return (
+    <div className="mod-row">
+      <div>
+        <div className="mod-name" title={getModDisplayName(mod)}>
+          {getModDisplayName(mod)}
+        </div>
+        <div className="mod-meta" title={mod.pakFileName}>
+          {mod.pakFileName}
+        </div>
+      </div>
+
+      <div className="mod-meta" title={mod.mod.author ?? '-'}>
+        {mod.mod.author ?? '-'}
+      </div>
+
+      <div className="mod-meta" title={mod.mod.version ?? '-'}>
+        {mod.mod.version ?? '-'}
+      </div>
+
+      <div className="mod-meta" title={formatDate(mod.lastModifiedMs)}>
+        {formatDate(mod.lastModifiedMs)}
+      </div>
+    </div>
+  )
+}
 
 function App(): React.JSX.Element {
   const [scanResult, setScanResult] = useState<ScanResultState | null>(null)
@@ -26,144 +62,105 @@ function App(): React.JSX.Element {
     void handleScanModsFolder()
   }, [])
 
-  const mods = scanResult?.mods ?? []
+  const allMods = useMemo(() => scanResult?.mods ?? [], [scanResult])
+
+  // Profile 還沒做，所以暫時全部都是 disabled。
+  const enabledMods: ModItem[] = []
+  const disabledMods = allMods
+
   const scanErrors = scanResult?.errors ?? []
 
   return (
-    <main style={{ padding: 24, fontFamily: 'sans-serif' }}>
-      <h1>BG3 Mod Manager</h1>
+    <div className="app-shell">
+      <header className="app-header">
+        <div>
+          <div className="app-title">BG3 Mod Manager</div>
+          <div className="app-subtitle">Local .pak profile manager</div>
+        </div>
 
-      <button onClick={handleScanModsFolder} disabled={isScanning}>
-        {isScanning ? 'Scanning...' : 'Refresh Mods'}
-      </button>
+        <button onClick={handleScanModsFolder} disabled={isScanning}>
+          {isScanning ? 'Scanning...' : 'Refresh Mods'}
+        </button>
+      </header>
 
-      {error && (
-        <pre style={{ color: 'crimson', marginTop: 16, whiteSpace: 'pre-wrap' }}>{error}</pre>
-      )}
+      <div className="app-content">
+        <aside className="sidebar">
+          <div className="sidebar-title">Profiles</div>
 
-      {scanResult && (
-        <section style={{ marginTop: 24 }}>
-          <h2>Mods Folder</h2>
-
-          <p>
-            Folder: <strong>{scanResult.folderPath}</strong>
-          </p>
-
-          <p>
-            Mods: <strong>{mods.length}</strong>
-          </p>
-
-          <p>
-            Errors: <strong>{scanErrors.length}</strong>
-          </p>
-
-          <h3>Mods</h3>
-
-          <div
-            style={{
-              maxHeight: 520,
-              overflow: 'auto',
-              border: '1px solid #555',
-              borderRadius: 8
-            }}
-          >
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Name</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Author</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Version</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>UUID</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Modified</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Pak</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {mods.map((mod) => (
-                  <tr key={mod.mod.uuid ?? mod.pakPath}>
-                    <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                      {mod.mod.name ?? '-'}
-                    </td>
-
-                    <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                      {mod.mod.author ?? '-'}
-                    </td>
-
-                    <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                      {mod.mod.version ?? '-'}
-                    </td>
-
-                    <td
-                      style={{
-                        padding: 8,
-                        borderTop: '1px solid #333',
-                        fontFamily: 'monospace',
-                        fontSize: 12
-                      }}
-                    >
-                      {mod.mod.uuid ?? '-'}
-                    </td>
-
-                    <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                      {new Date(mod.lastModifiedMs).toLocaleString()}
-                    </td>
-
-                    <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                      {mod.pakFileName}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="profile-item">
+            <div style={{ fontWeight: 700 }}>Default</div>
+            <div className="mod-meta">Profile system coming next</div>
           </div>
+        </aside>
+
+        <main className="main-panel">
+          {error && <div className="error-box">{error}</div>}
+
+          <section className="status-row">
+            <div className="status-card">
+              <div className="status-label">Mods Folder</div>
+              <div className="status-value">{scanResult?.folderPath ?? 'Scanning default path...'}</div>
+            </div>
+
+            <div className="status-card">
+              <div className="status-label">Mods</div>
+              <div className="status-value">{allMods.length}</div>
+            </div>
+
+            <div className="status-card">
+              <div className="status-label">Errors</div>
+              <div className="status-value">{scanErrors.length}</div>
+            </div>
+          </section>
+
+          <section className="mod-columns">
+            <div className="mod-column">
+              <div className="mod-column-header">
+                <div className="mod-column-title">Enabled Mods</div>
+                <div className="mod-column-count">{enabledMods.length}</div>
+              </div>
+
+              <div className="mod-list">
+                {enabledMods.length === 0 ? (
+                  <div className="empty-state">
+                    No enabled mods yet. Profiles and drag/drop are the next step.
+                  </div>
+                ) : (
+                  enabledMods.map((mod) => <ModRow key={mod.mod.uuid ?? mod.pakPath} mod={mod} />)
+                )}
+              </div>
+            </div>
+
+            <div className="mod-column">
+              <div className="mod-column-header">
+                <div className="mod-column-title">Disabled Mods</div>
+                <div className="mod-column-count">{disabledMods.length}</div>
+              </div>
+
+              <div className="mod-list">
+                {disabledMods.length === 0 ? (
+                  <div className="empty-state">No disabled mods found.</div>
+                ) : (
+                  disabledMods.map((mod) => <ModRow key={mod.mod.uuid ?? mod.pakPath} mod={mod} />)
+                )}
+              </div>
+            </div>
+          </section>
 
           {scanErrors.length > 0 && (
-            <>
-              <h3 style={{ marginTop: 24 }}>Scan Errors</h3>
+            <section className="error-box">
+              <strong>Scan Errors</strong>
 
-              <div
-                style={{
-                  maxHeight: 240,
-                  overflow: 'auto',
-                  border: '1px solid #884444',
-                  borderRadius: 8
-                }}
-              >
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Pak</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Error</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {scanErrors.map((scanError) => (
-                      <tr key={scanError.pakPath}>
-                        <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                          {scanError.pakFileName}
-                        </td>
-
-                        <td style={{ padding: 8, borderTop: '1px solid #333' }}>
-                          {scanError.error}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+              {scanErrors.map((scanError) => (
+                <div key={scanError.pakPath} style={{ marginTop: 8 }}>
+                  {scanError.pakFileName}: {scanError.error}
+                </div>
+              ))}
+            </section>
           )}
-        </section>
-      )}
-
-      {!scanResult && !error && (
-        <p style={{ marginTop: 16 }}>
-          The app will automatically scan the default BG3 Mods folder.
-        </p>
-      )}
-    </main>
+        </main>
+      </div>
+    </div>
   )
 }
 
