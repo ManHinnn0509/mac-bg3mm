@@ -1,4 +1,3 @@
-
 export function decodeBg3Version(value: string | bigint): string {
   const n = typeof value === 'bigint' ? value : BigInt(value)
 
