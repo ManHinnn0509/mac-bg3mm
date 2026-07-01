@@ -24,6 +24,7 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
+    title: "Simple BG3 mod manager",
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
