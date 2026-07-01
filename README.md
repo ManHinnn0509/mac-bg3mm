@@ -1,10 +1,10 @@
 # bg3-mod-manager
 
-An Electron application with React and TypeScript
+Just a really simple BG3 mod manager, drag and drop to enable/disable/rearrange mods
 
-## Recommended IDE Setup
+Made this because I can only play BG3 on my MacBook right now and I really needed a mod manager...
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+Should also works on Windows (Need to be tested)
 
 ## Project Setup
 
