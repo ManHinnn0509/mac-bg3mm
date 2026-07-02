@@ -6,6 +6,8 @@ Drag and drop to enable/disable/rearrange mods
 
 Made this because I can only play BG3 on my MacBook right now and I really needed a mod manager...
 
+**On MacOS, scripts that requires Script Extender will be blocked cause as far as I know SE doesnt support Mac**
+
 ## Project Setup
 
 ### Install
